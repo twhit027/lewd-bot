@@ -8,7 +8,7 @@ var _ = require('lodash');
 var os = require('os');
 
 var controller = Botkit.slackbot({debug: false});
-var bot = controller.spawn({token: 'xoxb-60197338375-wqBybXQo0ffwcKoDUa4Rjs9j'}).startRTM();
+var bot = controller.spawn({token: process.env.token}).startRTM();
 
 // Constants
 
