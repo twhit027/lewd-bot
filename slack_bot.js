@@ -1,246 +1,178 @@
-/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-           ______     ______     ______   __  __     __     ______
-          /\  == \   /\  __ \   /\__  _\ /\ \/ /    /\ \   /\__  _\
-          \ \  __<   \ \ \/\ \  \/_/\ \/ \ \  _"-.  \ \ \  \/_/\ \/
-           \ \_____\  \ \_____\    \ \_\  \ \_\ \_\  \ \_\    \ \_\
-            \/_____/   \/_____/     \/_/   \/_/\/_/   \/_/     \/_/
+/*LEWD-BOT*/
 
-
-This is a sample Slack bot built with Botkit.
-
-This bot demonstrates many of the core features of Botkit:
-
-* Connect to Slack using the real time API
-* Receive messages based on "spoken" patterns
-* Reply to messages
-* Use the conversation system to ask questions
-* Use the built in storage system to store and retrieve information
-  for a user.
-
-# RUN THE BOT:
-
-  Get a Bot token from Slack:
-
-    -> http://my.slack.com/services/new/bot
-
-  Run your bot from the command line:
-
-    token=<MY TOKEN> node slack_bot.js
-
-# USE THE BOT:
-
-  Find your bot inside Slack to send it a direct message.
-
-  Say: "Hello"
-
-  The bot will reply "Hello!"
-
-  Say: "who are you?"
-
-  The bot will tell you its name, where it is running, and for how long.
-
-  Say: "Call me <nickname>"
-
-  Tell the bot your nickname. Now you are friends.
-
-  Say: "who am I?"
-
-  The bot will tell you your nickname, if it knows one for you.
-
-  Say: "shutdown"
-
-  The bot will ask if you are sure, and then shut itself down.
-
-  Make sure to invite your bot into other channels using /invite @<my bot>!
-
-# EXTEND THE BOT:
-
-  Botkit has many features for building cool and useful bots!
-
-  Read all about it here:
-
-    -> http://howdy.ai/botkit
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-
-
-if (!process.env.token) {
-    console.log('Error: Specify token in environment');
-    process.exit(1);
-}
+// Initialization
+'use strict';
 
 var Botkit = require('./lib/Botkit.js');
+var _ = require('lodash');
 var os = require('os');
 
-var controller = Botkit.slackbot({
-    debug: true
-});
+var controller = Botkit.slackbot({debug: false});
+var bot = controller.spawn({token: 'xoxb-60197338375-wqBybXQo0ffwcKoDUa4Rjs9j'}).startRTM();
 
-var bot = controller.spawn({
-    token: process.env.token
-}).startRTM();
+// Constants
 
+var lewdTerms = [
+    'ass',
+    'beach',
+    'bikini',
+    'boobs',
+    'booty',
+    'bounce',
+    'bounce break',
+    'bra',
+    'breasts',
+    'camgirl',
+    'chick',
+    'cowgirl',
+    'girl',
+    'hot',
+    'jiggle',
+    'jiggly',
+    'lewdPerson',
+    'lingerie',
+    'naked',
+    'nipples',
+    'nude',
+    'panties',
+    'pawg',
+    'rack',
+    'sexy',
+    'slutty',
+    'swimsuit',
+    'thong',
+    'tits',
+    'twerk',
+    'wild',
+    'wooty',
+    'yoga'
+];
 
-controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {
+var lewdCelebList = [
+    'alison brie',
+    'celebrity',
+    'kate upton',
+    'lindsay lohan',
+    'megan fox',
+    'model',
+    'sasha gray',
+    'scarlet johanson',
+    'super model'
+];
 
-    bot.api.reactions.add({
-        timestamp: message.ts,
-        channel: message.channel,
-        name: 'robot_face',
-    }, function(err, res) {
-        if (err) {
-            bot.botkit.log('Failed to add emoji reaction :(', err);
-        }
-    });
+var lewdCommandList = {
+    'salute': 'nbc police salute',
+    'keyboard': 'ron jeremy keyboard',
+    'celery man': 'celery man',
+    'tayne': 'nude tayne'
+};
 
+var lewdHype = [
+    'LEWD HYPE :dickbutt:',
+    'HYPETRAIN :snowsplode: :eggplant: '
+];
 
-    controller.storage.users.get(message.user, function(err, user) {
-        if (user && user.name) {
-            bot.reply(message, 'Hello ' + user.name + '!!');
-        } else {
-            bot.reply(message, 'Hello.');
-        }
-    });
-});
+// Listeners
 
-controller.hears(['call me (.*)', 'my name is (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
-    var name = message.match[1];
-    controller.storage.users.get(message.user, function(err, user) {
-        if (!user) {
-            user = {
-                id: message.user,
-            };
-        }
-        user.name = name;
-        controller.storage.users.save(user, function(err, id) {
-            bot.reply(message, 'Got it. I will call you ' + user.name + ' from now on.');
-        });
-    });
-});
+controller.hears('^lewdme!$', 'ambient', function(bot, message) {return getLewdGiphy(bot, message)});
+controller.hears('^lewdme! (.*)$', 'ambient', function(bot, message) {return getSpecificGiphy(bot, message)});
 
-controller.hears(['what is my name', 'who am i'], 'direct_message,direct_mention,mention', function(bot, message) {
+// Functions
 
-    controller.storage.users.get(message.user, function(err, user) {
-        if (user && user.name) {
-            bot.reply(message, 'Your name is ' + user.name);
-        } else {
-            bot.startConversation(message, function(err, convo) {
-                if (!err) {
-                    convo.say('I do not know your name yet!');
-                    convo.ask('What should I call you?', function(response, convo) {
-                        convo.ask('You want me to call you `' + response.text + '`?', [
-                            {
-                                pattern: 'yes',
-                                callback: function(response, convo) {
-                                    // since no further messages are queued after this,
-                                    // the conversation will end naturally with status == 'completed'
-                                    convo.next();
-                                }
-                            },
-                            {
-                                pattern: 'no',
-                                callback: function(response, convo) {
-                                    // stop the conversation. this will cause it to end with status == 'stopped'
-                                    convo.stop();
-                                }
-                            },
-                            {
-                                default: true,
-                                callback: function(response, convo) {
-                                    convo.repeat();
-                                    convo.next();
-                                }
-                            }
-                        ]);
+function getSpecificGiphy(bot, message) {
+    var command = message.match[1];
+    var searchTerms = lewdCommandList[command];
 
-                        convo.next();
-
-                    }, {'key': 'nickname'}); // store the results in a field called nickname
-
-                    convo.on('end', function(convo) {
-                        if (convo.status == 'completed') {
-                            bot.reply(message, 'OK! I will update my dossier...');
-
-                            controller.storage.users.get(message.user, function(err, user) {
-                                if (!user) {
-                                    user = {
-                                        id: message.user,
-                                    };
-                                }
-                                user.name = convo.extractResponse('nickname');
-                                controller.storage.users.save(user, function(err, id) {
-                                    bot.reply(message, 'Got it. I will call you ' + user.name + ' from now on.');
-                                });
-                            });
-
-
-
-                        } else {
-                            // this happens if the conversation ended prematurely for some reason
-                            bot.reply(message, 'OK, nevermind!');
-                        }
-                    });
-                }
-            });
-        }
-    });
-});
-
-
-controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function(bot, message) {
-
-    bot.startConversation(message, function(err, convo) {
-
-        convo.ask('Are you sure you want me to shutdown?', [
-            {
-                pattern: bot.utterances.yes,
-                callback: function(response, convo) {
-                    convo.say('Bye!');
-                    convo.next();
-                    setTimeout(function() {
-                        process.exit();
-                    }, 3000);
-                }
-            },
-        {
-            pattern: bot.utterances.no,
-            default: true,
-            callback: function(response, convo) {
-                convo.say('*Phew!*');
-                convo.next();
-            }
-        }
-        ]);
-    });
-});
-
-
-controller.hears(['uptime', 'identify yourself', 'who are you', 'what is your name'],
-    'direct_message,direct_mention,mention', function(bot, message) {
-
-        var hostname = os.hostname();
-        var uptime = formatUptime(process.uptime());
-
-        bot.reply(message,
-            ':robot_face: I am a bot named <@' + bot.identity.name +
-             '>. I have been running for ' + uptime + ' on ' + hostname + '.');
-
-    });
-
-function formatUptime(uptime) {
-    var unit = 'second';
-    if (uptime > 60) {
-        uptime = uptime / 60;
-        unit = 'minute';
+    if (_.isEmpty(searchTerms)) {
+        bot.reply(message, 'Invalid Lewd Command.');
+    } else {
+        var src = {response_url: 'http://api.giphy.com/v1/gifs/search?q=' + searchTerms + '&api_key=dc6zaTOxFJmzC&limit=125', channel: message.channel};
+        bot.replyPublicDelayed(src, {}, function(res) {return getSpecificGiphyCallback(res, message)});
     }
-    if (uptime > 60) {
-        uptime = uptime / 60;
-        unit = 'hour';
+}
+
+function getSpecificGiphyCallback(res, message) {
+    var gif = res.data[0];
+    bot.reply(message, isValidGif(gif) ? getGifURL(gif) : 'No image available.');
+}
+
+function getLewdGiphy(bot, message) {
+    var searchTerms = getLewdTerms();
+    var offset = _.random(0, 500);
+    var src = {response_url: 'http://api.giphy.com/v1/gifs/search?q=' + searchTerms + '&api_key=dc6zaTOxFJmzC&limit=125&rating=r&offset=' + offset, channel: message.channel};
+
+    bot.replyPublicDelayed(src, {}, function(res) {return getLewdGiphyCallback(res, message, searchTerms)});
+}
+
+function getLewdGiphyCallback(res, message, searchTerms) {
+    var gifs = getLewdestGifs(res.data);
+    var num = _.random(0, (gifs.length || 100) - 1)
+    var gif = gifs[num];
+
+    if (isValidGif(gif)) {
+        getHype(message);
+        bot.reply(message, 'Search: ' + searchTerms);
+        bot.reply(message, getGifURL(gif));
+    } else {
+        getLewdGiphy(bot, message);
     }
-    if (uptime != 1) {
-        unit = unit + 's';
+}
+
+function getLewdTerms() {
+    var maxTermCount = 5;
+    var randomNumMax = lewdTerms.length - 1;
+    var searchTerms = [];
+    var lewdPerson = '';
+
+    while(searchTerms.length < maxTermCount) {
+        searchTerms = getRandomTerm(searchTerms, maxTermCount, randomNumMax);
     }
 
-    uptime = uptime + ' ' + unit;
-    return uptime;
+    if(_.includes(searchTerms, 'lewdPerson')) {
+        var personNum = _.random(0, lewdCelebList.length - 1);
+        lewdPerson = lewdCelebList[personNum];
+    }
+
+    return searchTerms.join(' ').replace('lewdPerson', lewdPerson);
+}
+
+function getRandomTerm(searchTerms, maxTermCount, randomNumMax) {
+    var num = _.random(0, randomNumMax)
+    var term = lewdTerms[num];
+
+    if (!_.includes(searchTerms, term)) {
+        searchTerms.push(term)
+    }
+
+    return searchTerms;
+}
+
+function getLewdestGifs(data) {
+    var lewdest = _.filter(data, {rating: 'r'});
+
+    if (!lewdest.length) {
+        lewdest = _.filter(data, {rating: 'pg-13'});
+    }
+
+    return lewdest.length ? lewdest : data;
+}
+
+function getGifURL(gif) {
+    return gif.images.fixed_height.url || gif.images.fixed_width.url
+}
+
+function isValidGif(gif) {
+    return _.isObject(gif) && gif.images && (gif.images.fixed_height || gif.images.fixed_width);
+}
+
+function getHype(message) {
+    var hypeRoll = _.random(1, 100);
+    var hypeHit = 50;
+
+    if (_.isEqual(hypeRoll, hypeHit)) {
+        var hypeNum = _.random(0, lewdHype.length - 1)
+        var hypeMessage = lewdHype[hypeNum];
+        var hypeTrain = _.repeat(hypeMessage, 52);
+        bot.reply(message, hypeTrain);
+    }
 }
