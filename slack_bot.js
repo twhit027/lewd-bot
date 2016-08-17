@@ -75,15 +75,36 @@ var lewdHype = [
 var flacidIds = [
     'yaTY469im8ef6',
     '5spnAu3cNDbnG',
-    'F9I7wpVCuGo8w'
+    'F9I7wpVCuGo8w',
+    '10eOMc7V4uHnZm',
+    'X5SBYpFejXji0',
+    'M7ozcpQR3eGfm',
+    '1jrvwmAHcZCAU',
+    'c7ed7bd0wU9Ve'
 ];
 
 // Listeners
 
 controller.hears('^lewdme!$', 'ambient', function(bot, message) {return getLewdGiphy(bot, message)});
 controller.hears('^lewdme! (.*)$', 'ambient', function(bot, message) {return getSpecificGiphy(bot, message)});
+controller.hears('^lewd-bomb!(.*)?$', 'ambient', function(bot, message) {return getLewdBomb(bot, message)});
 
 // Functions
+
+function getLewdBomb(bot, message) {
+    var lewdSize = {
+        'a': 2,
+        'b': 4,
+        'c': 6,
+        'dd': 8
+    };
+    var lewdCommand = message.match[1] && _.trimStart(message.match[1].toLowerCase());
+    var lewdCount = lewdSize[lewdCommand] || lewdSize.a;
+
+    for (var i=0; i<lewdCount; i++) {
+        getLewdGiphy(bot, message);
+    }
+}
 
 function getSpecificGiphy(bot, message) {
     var command = message.match[1];
@@ -155,7 +176,7 @@ function getRandomTerm(searchTerms, maxTermCount, randomNumMax) {
 
 function getLewdestGifs(data) {
     var lewdest = _.filter(data, {rating: 'r'});
-    lewdest = filterFlacid(data);
+    lewdest = filterFlacid(lewdest);
 
     if (!lewdest.length) {
         lewdest = _.filter(data, {rating: 'pg-13'});
