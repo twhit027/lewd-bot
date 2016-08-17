@@ -72,6 +72,12 @@ var lewdHype = [
     'HYPETRAIN :snowsplode: :eggplant: '
 ];
 
+var flacidIds = [
+    'yaTY469im8ef6',
+    '5spnAu3cNDbnG',
+    'F9I7wpVCuGo8w'
+];
+
 // Listeners
 
 controller.hears('^lewdme!$', 'ambient', function(bot, message) {return getLewdGiphy(bot, message)});
@@ -86,7 +92,7 @@ function getSpecificGiphy(bot, message) {
     if (_.isEmpty(searchTerms)) {
         bot.reply(message, 'Invalid Lewd Command.');
     } else {
-        var src = {response_url: 'http://api.giphy.com/v1/gifs/search?q=' + searchTerms + '&api_key=dc6zaTOxFJmzC&limit=125', channel: message.channel};
+        var src = {response_url: 'http://api.giphy.com/v1/gifs/search?q=' + searchTerms + '&api_key=dc6zaTOxFJmzC&limit=1', channel: message.channel};
         bot.replyPublicDelayed(src, {}, function(res) {return getSpecificGiphyCallback(res, message)});
     }
 }
@@ -111,7 +117,7 @@ function getLewdGiphyCallback(res, message, searchTerms) {
 
     if (isValidGif(gif)) {
         getHype(message);
-        bot.reply(message, 'Search: ' + searchTerms);
+        bot.reply(message, 'Search: ' + searchTerms + ' _(' + gif.id + ')_');
         bot.reply(message, getGifURL(gif));
     } else {
         getLewdGiphy(bot, message);
@@ -149,6 +155,7 @@ function getRandomTerm(searchTerms, maxTermCount, randomNumMax) {
 
 function getLewdestGifs(data) {
     var lewdest = _.filter(data, {rating: 'r'});
+    lewdest = filterFlacid(data);
 
     if (!lewdest.length) {
         lewdest = _.filter(data, {rating: 'pg-13'});
@@ -163,6 +170,12 @@ function getGifURL(gif) {
 
 function isValidGif(gif) {
     return _.isObject(gif) && gif.images && (gif.images.fixed_height || gif.images.fixed_width);
+}
+
+function filterFlacid(gifs) {
+    return _.filter(gifs, function(gif) {
+        return !_.includes(flacidIds, gif.id);
+    });
 }
 
 function getHype(message) {
