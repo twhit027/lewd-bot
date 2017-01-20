@@ -261,6 +261,9 @@ function getHype(message) {
 function getFlacidIds() {
     return new bluebird(function(resolve, reject) {
         return bucket.get('flacidIds', function(err, result) {
+            if (err && err.code == 13){
+                return resolve([]);
+            }
             return resolve(result.value);
         });
     })
